@@ -1,0 +1,42 @@
+# 告警名称
+name: nginx_access_404
+
+# 告警类型
+type: frequency
+
+# 告警匹配的索引名称
+index: nginx-access*
+
+#告警的条件，查询最近1分钟的日志，当10s内发生5次404错误则触发告警
+num_events: 5
+timeframe:
+  seconds: 10
+  #minutes: 1
+
+filter:
+- query:
+    query_string:
+      query: "response_code: 404"
+
+
+# 告警方式：钉钉
+alert_text_type: alert_text_only
+alert:
+- "elastalert.elastalert_modules.dingtalk_alert.DingTalkAlerter"
+dingtalk_webhook: "xxx"
+dingtalk_msgtype: "text"
+dingtalk_secret: "xxxx"
+
+alert_text: |
+  告警程序: ElasticSearch_Alert
+  告警节点: {}
+  调用方式: {}
+  请求链接: {}
+  触发条件: 10s 内 {} 状态码 超过 {} 次
+
+alert_text_args:
+  - host.name
+  - method
+  - request
+  - response_code
+  - num_hits

@@ -37,11 +37,13 @@ class DingTalkAlerter(Alerter):
         return body.encode('utf8')
     
     def alert(self, matches):
+        params = ""
         if len(self.dingtalk_secret) > 10:
             timestamp, sign = self.get_secret()
-            fix_dingtalk_webhook_url = self.dingtalk_webhook_url + f"&timestamp={timestamp}&sign={sign}"
-        else:
-            fix_dingtalk_webhook_url  = self.dingtalk_webhook_url
+            params = {
+                "timestamp": timestamp,
+                "sign": sign
+            }
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json;charset=utf-8"
@@ -57,9 +59,9 @@ class DingTalkAlerter(Alerter):
             }
         }
         try:
-            response = requests.post(fix_dingtalk_webhook_url, 
+            response = requests.post(self.dingtalk_webhook_url, 
                         data=json.dumps(payload, cls=DateTimeEncoder),
-                        headers=headers)
+                        headers=headers, params=params)
             response.raise_for_status()
         except RequestException as e:
             raise EAException("Error request to Dingtalk: {0}".format(str(e)))

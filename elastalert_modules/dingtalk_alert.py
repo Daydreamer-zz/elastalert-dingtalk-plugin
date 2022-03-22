@@ -7,8 +7,13 @@
 @version: 0.0.0
 @license:
 @copyright:
-
 """
+from os import times
+import time
+import hmac
+import hashlib
+import base64
+import urllib.parse
 import json
 import requests
 from elastalert.alerts import Alerter, DateTimeEncoder
@@ -25,12 +30,18 @@ class DingTalkAlerter(Alerter):
         self.dingtalk_webhook_url = self.rule['dingtalk_webhook']
         self.dingtalk_msgtype = self.rule.get('dingtalk_msgtype', 'text')
         self.dingtalk_isAtAll = self.rule.get('dingtalk_isAtAll', False)
-        self.digtalk_title = self.rule.get('dingtalk_title', '')
+        self.dingtalk_title = self.rule.get('dingtalk_title', '')
+        self.dingtalk_secret = self.rule.get('dingtalk_secret', '')
 
     def format_body(self, body):
         return body.encode('utf8')
     
     def alert(self, matches):
+        if len(self.dingtalk_secret) > 10:
+            timestamp, sign = self.get_secret()
+            fix_dingtalk_webhook_url = self.dingtalk_webhook_url + f"&timestamp={timestamp}&sign={sign}"
+        else:
+            fix_dingtalk_webhook_url  = self.dingtalk_webhook_url
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json;charset=utf-8"
@@ -46,7 +57,7 @@ class DingTalkAlerter(Alerter):
             }
         }
         try:
-            response = requests.post(self.dingtalk_webhook_url, 
+            response = requests.post(fix_dingtalk_webhook_url, 
                         data=json.dumps(payload, cls=DateTimeEncoder),
                         headers=headers)
             response.raise_for_status()
@@ -59,3 +70,13 @@ class DingTalkAlerter(Alerter):
             "dingtalk_webhook": self.dingtalk_webhook_url
         }
         pass
+
+    def get_secret(self):
+        timestamp = str(round(time.time() * 1000))
+        secret = self.dingtalk_secret
+        secret_enc = secret.encode('utf-8')
+        string_to_sign = '{}\n{}'.format(timestamp, secret)
+        string_to_sign_enc = string_to_sign.encode('utf-8')
+        hmac_code = hmac.new(secret_enc, string_to_sign_enc, digestmod=hashlib.sha256).digest()
+        sign = urllib.parse.quote_plus(base64.b64encode(hmac_code))
+        return timestamp, sign
